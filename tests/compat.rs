@@ -67,6 +67,34 @@ fn matches_committed_golden() {
     assert_matches(&reference, &run_ours_nf(), 1e-6);
 }
 
+/// A fully zero sample column drives its library size to 0, so the offset is
+/// log(0) = -Inf. edgeR (edgeR 4.4.0) bails with "offsets must be finite
+/// values"; we must fail loud too rather than emit an all-NaN table with a
+/// success exit. The well-conditioned golden shares this design (4 samples).
+#[test]
+fn zero_library_column_errors() {
+    let mut out = Vec::new();
+    let err = predfc(
+        &PredFcArgs {
+            counts: &golden("counts_zerolib.tsv"),
+            design: &golden("design.tsv"),
+            dispersion: 0.05,
+            dispersion_file: None,
+            norm_factors: None,
+            offset_file: None,
+            prior_count: 0.125,
+        },
+        &mut out,
+    )
+    .expect_err("zero-library column must error, not emit output");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("s4") && msg.contains("offsets must be finite"),
+        "unexpected error message: {msg}"
+    );
+    assert!(out.is_empty(), "no numeric output on the degenerate path");
+}
+
 #[test]
 fn matches_live_edger() {
     let rscript = "Rscript";

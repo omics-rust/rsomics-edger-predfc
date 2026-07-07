@@ -16,6 +16,7 @@ const TOL: f64 = 1e-10;
 
 pub struct Matrix {
     pub gene_col: String,
+    pub sample_names: Vec<String>,
     pub genes: Vec<String>,
     pub counts: Vec<f64>,
     pub n_samples: usize,
@@ -32,7 +33,8 @@ impl Matrix {
             .map_err(RsomicsError::Io)?;
         let mut hcols = header.split('\t');
         let gene_col = hcols.next().unwrap_or("gene").to_string();
-        let n_samples = hcols.count();
+        let sample_names: Vec<String> = hcols.map(str::to_string).collect();
+        let n_samples = sample_names.len();
         if n_samples == 0 {
             return Err(RsomicsError::InvalidInput(
                 "count matrix has no sample columns".into(),
@@ -65,6 +67,7 @@ impl Matrix {
         }
         Ok(Self {
             gene_col,
+            sample_names,
             genes,
             counts,
             n_samples,
@@ -435,6 +438,21 @@ pub fn predfc(args: &PredFcArgs, output: &mut dyn Write) -> Result<u64> {
         };
         lib.iter().zip(&nf).map(|(&l, &f)| (l * f).ln()).collect()
     };
+
+    // A zero effective library size makes offset = log(0) = -Inf, which poisons
+    // the GLM into an all-NaN fit. edgeR bails here (.compressOffsets: "offsets
+    // must be finite values"); so do we, rather than ship a NaN table with a
+    // success exit. Covers the --offset override path too (a supplied ±Inf/NaN).
+    if let Some(s) = offset.iter().position(|o| !o.is_finite()) {
+        let id = m
+            .sample_names
+            .get(s)
+            .map_or_else(|| s.to_string(), Clone::clone);
+        return Err(RsomicsError::InvalidInput(format!(
+            "zero library size for sample {id}: offsets must be finite values"
+        )));
+    }
+
     let eff_lib: Vec<f64> = offset.iter().map(|&o| o.exp()).collect();
 
     let mean_eff = eff_lib.iter().sum::<f64>() / eff_lib.len() as f64;
