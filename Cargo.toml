@@ -1,6 +1,6 @@
 [package]
 name = "rsomics-edger-predfc"
-version = "0.1.1"
+version = "0.1.2"
 description = "edgeR predFC — predictive (prior-count-augmented) log2-fold-change coefficients from an NB-GLM fit, the shrunken logFC edgeR recommends for ranking and plotting"
 edition = "2024"
 rust-version = "1.91"

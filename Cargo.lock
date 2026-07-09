@@ -557,7 +557,7 @@ dependencies = [
 
 [[package]]
 name = "rsomics-edger-predfc"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "clap",
  "criterion",
